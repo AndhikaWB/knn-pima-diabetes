@@ -1,190 +1,269 @@
 import csv
 import math
-
-class NoIndexFoundFromLabel(Exception):
-    pass
+import statistics
 
 class KNN:
-    def __init__(self, train_set, label):
-        # Dataset untuk dijadikan acuan bagi data baru
-        self.train_set = self.impor_csv(train_set)
-        # Nama-nama label kolom (header) untuk dataset training
-        self.label = self.impor_csv(label)[0]
-
-    # Ganti nilai nol ke "None" pada label kolom tertentu
-    def _nol_ke_null(self, label, ganti = 0, dataset = None):
-        # Gunakan dataset training bila parameter dataset kosong
-        if dataset == None: dataset = self.train_set
-        # Konversi label ke list jika hanya ada satu label
-        if not isinstance(label, list): label = [label]
-
-        indeks_label = []
-        # Temukan indeks kolom dari tiap-tiap nama label
-        for nama_label in label:
-            for kol in range(len(self.label)):
-                if self.label[kol] == nama_label:
-                    indeks_label.append(kol)
-        # Jangan lanjutkan bila indeks label kosong
-        if indeks_label == []:
-            raise NoIndexFoundFromLabel("tidak dapat menemukan indeks dari label")
-
-        # Ganti nilai "ganti" pada kolom tertentu dengan "None"
-        for bar in range(len(dataset)):
-            for kol in range(len(dataset[bar])):
-                if kol in indeks_label:
-                    if dataset[bar][kol] == ganti:
-                        dataset[bar][kol] = None
-        # Kembalikan dataset yang sudah di-null-kan
-        return dataset
-
-    # Isi nilai "None" pada label (kolom) tertentu berdasarkan rata-rata K tetangga terdekat
-    def _imputer(self, label, k_tetangga = 5, dataset = None):
-        # Gunakan dataset training bila parameter dataset kosong
-        if dataset == None: dataset = self.train_set
-
-        # Konversi label ke list jika hanya ada satu label
-        if not isinstance(label, list): label = [label]
-
-        indeks_label = []
-        # Temukan indeks kolom dari tiap-tiap label
-        for nama_label in label:
-            for kol in range(len(self.label)):
-                if self.label[kol] == nama_label:
-                    indeks_label.append([kol, nama_label])
-        # Jangan lanjutkan bila indeks label kosong
-        if indeks_label == []:
-            raise NoIndexFoundFromLabel("tidak dapat menemukan indeks dari label")
-
-        for bar in range(len(dataset)):
-            for kol in range(len(dataset[bar])):
-                if kol in [_[0] for _ in indeks_label]:
-                    if dataset[bar][kol] == None:
-                        for temp_bar in range(len(indeks_label)):
-                            if kol == indeks_label[temp_bar][0]:
-                                nama_kol = indeks_label[temp_bar][1]
-                        tetangga = self.dapatkan_tetangga(dataset[bar], k_tetangga, dataset, nama_kol)
-                        for data_kol in tetangga:
-                            pass
-
-
-    def impor_csv(self, in_file):
-        # Baris dataset mula-mula
+    @staticmethod
+    def import_csv(input_file, header = True):
         dataset = []
-        # Buka file CSV untuk dikonversi ke list dataset
-        with open(in_file, "r") as file:
-            for bar in csv.reader(file):
-                for kol in bar:
+        # Open input file (read mode)
+        with open(input_file, "r") as file:
+            # Skip the first row in file if header exist
+            if header: reader = list(csv.reader(file)[1:])
+            else: reader = list(csv.reader(file))
+            for row in range(len(reader)):
+                # Read column for each row
+                for col in range(len(reader[row])):
                     try:
-                        # Konversi string ke int atau float
-                        kol = float(kol)
-                        if kol.is_integer(): kol = int(kol)
-                    # Biarkan string bila tidak bisa dikonversi
-                    except ValueError: pass
-                # Tambah baris saat ini ke dataset
-                dataset.append(bar)
-        # Kembalikan dataset yang bersih dari baris duplikat
-        return list(dict.fromkeys(dataset))
+                        if reader[row][col] in ("None", "NaN"):
+                            # Convert "empty" string in column to null (None)
+                            reader[row][col] = None
+                        else:
+                            # Convert other string in column to float or int
+                            reader[row][col] = float(reader[row][col])
+                            if reader[row][col].is_integer():
+                                reader[row][col] = int(reader[row][col])
+                    except ValueError:
+                        # Do not convert string if not possible
+                        pass
+                # Append converted row to dataset
+                dataset.append(reader[row])
+        # Return dataset with duplicate rows removed
+        unique_dataset = []
+        for row in dataset:
+            if row not in unique_dataset:
+                unique_dataset.append(row)
+        return unique_dataset
 
-    def ekspor_csv(self, out_file = "dataset.csv", dataset = None):
-        # Gunakan dataset training bila parameter dataset kosong
-        if dataset == None: dataset = self.train_set
-        # Tulis baris-baris dataset ke dalam file
-        with open(out_file, "w") as file:
+    @staticmethod
+    def export_csv(dataset, output_file, header_list = None, on_linux = False):
+        # Workaround for extra blank lines on Windows
+        nl = "\n" if on_linux else ""
+        # Open output file (write mode)
+        with open(output_file, "w", newline = nl) as file:
+            if header_list != None:
+                # Write header too if header list is specified
+                csv.writer(file).writerow(header_list)
+            # Write rows from list in dataset
             csv.writer(file).writerows(dataset)
-    
-    def print_dataset(self, jum_baris = 10, dataset = None):
-        # Gunakan dataset training bila parameter dataset kosong
-        if dataset == None: dataset = self.train_set
-        # Panjang teks tiap-tiap nama label kolom
-        pjg_label = []
-        # Tampilkan label
-        for kol in self.label:
-            # Simpan panjang label untuk dipakai nanti
-            pjg_label.append(len(kol) + 4)
-            # Tetapkan lebar kolom sesuai panjang label + 3
-            print(f"{kol:<{len(kol) + 4}}", end = " ")
+
+    @staticmethod
+    # Header list can't be empty since column size is based on that
+    # Extra column spaces are useful when column values are longer than header
+    def print_dataset(dataset, header_list, max_rows = 10, extra_column_spaces = 4):
+        # Cancel print (useful in some scenarios)
+        if max_rows < 1: return
+        header_lengths = []
+        # Print dataset header
+        for header in header_list:
+            # Calculate header length plus extra column spaces
+            header_lengths.append(len(header) + extra_column_spaces)
+            print(f"{header:<{header_lengths[-1]}}", end = " ")
         print()
-        # Tampilkan dataset
-        for i, bar in enumerate(dataset):
-            if i == jum_baris - 1: break
-            for j, kol in enumerate(bar):
-                # Tetapkan lebar kolom sesuai panjang label + 3
-                print(f"{kol:<{pjg_label[j]}}", end = " ")
+        # Print data in dataset
+        for row in range(len(dataset)):
+            # Stop if it reached maximum rows from parameter
+            if row >= max_rows: break
+            for col in range(len(dataset[row])):
+                try:
+                    # Print each column with same width as header
+                    print(f"{dataset[row][col]:<{header_lengths[col]}}", end = " ")
+                except TypeError:
+                    # Workaround for null (None) data type
+                    print(f'{"NaN":<{header_lengths[col]}}', end = " ")
             print()
+        print()
 
-    def ukur_jarak(self, baris1, baris2):
-        # Jarak mula-mula antar baris data
-        jarak = 0.0
-        # Iterasi kolom-kolom pada baris data
-        for i in range(len(baris1) - 1):
-            # Ganti nilai "None" dengan nol bila ada
-            if baris1[i] == None: bar1 = 0
-            else: bar1 = baris1[i]
-            if baris2[i] == None: bar2 = 0
-            else: bar2 = baris2[i]
-            # Rumus jarak euklides = akar dari [ (x1-x2)^2 + (y1-y2)^2 + ... ]
-            jarak += (bar1 - bar2[i]) ** 2
-        # Kembalikan akar dari jarak sebelumnya
-        return math.sqrt(jarak)
-    
-    def dapatkan_tetangga(self, test_bar, k_tetangga = 5, dataset = None, filter_label = None, filter_nilai = None):
-        # Gunakan dataset training bila parameter dataset kosong
-        if dataset == None: dataset = self.train_set
+    # ==============================
+    # Single row operation
+    # ==============================
 
-        # Jarak antara 1 "test_bar" dengan semua data pada dataset
-        # Variabel "test_bar" tidak boleh beranggota lebih dari 1 baris
-        jarak = []
-        for bar in dataset:
-            # Jarak "baris" tes dengan suatu baris lainnya pada dataset
-            temp_jarak = self.ukur_jarak(bar, test_bar)
-            # Tambahkan data baris beserta jaraknya ke "jarak"
-            jarak.append([bar, temp_jarak])
-        # Sortir "jarak" berdasarkan kolom ke-1 (jarak terpendek)
-        jarak.sort(key=lambda x: x[1])
+    @staticmethod
+    # Get euclidean distance between 2 data rows
+    # data_row1 must not contain null (None) value
+    # data_row2 can contain some null values
+    # Null columns are ignored to estimate distance (may increase accuracy)
+    def get_distance(data_row1, data_row2):
+        # Copy list as new object, not as reference
+        ndata_row1 = data_row1[:]
+        ndata_row2 = data_row2[:]
+        # Initial distance
+        distance = 0.0
+        # Iterate columns to sum distance except last column (class/result column)
+        for col in range(len(data_row1) - 1):
+            # Immediately return if value from data_row1 is null
+            if ndata_row1[col] == None: return None
+            # Skip column if value from data_row2 is null
+            if ndata_row2[col] == None: continue
+            # Calculate euclidean distance (without square root)
+            distance += (ndata_row1[col] - ndata_row2[col]) ** 2
+        # Return square root of distance
+        return math.sqrt(distance)
 
-        # Jika tidak diterapkan "filter_label" maka langsung return
-        if filter_label == None:
-            # Kembalikan K tetangga pertama (tanpa informasi jarak)
-            return jarak[0][:k_tetangga]
+    @staticmethod
+    # Get closest neighbors of data row from dataset. Filter colums and value must be used together
+    # For example, if filter_columns_index = [0, 1, 2] and filter value = None
+    # Then the neighbors will not have index 0, 1, 2 with null (None) value
+    def get_neighbors(data_row, dataset, k_neighbors = 5, filter_columns_index = None, filter_value = None):
+        distances = []
+        for row in dataset:
+            # Get distance from a row (in dataset) to data row (from parameter)
+            curr_distance = KNN.get_distance(row, data_row)
+            # Save row data and the distance
+            if curr_distance != None:
+                distances.append([row, curr_distance])
+        # Sort neighbors by closest distance (column index 1)
+        distances.sort(key = lambda x: x[1])
+        # Begin returning or filtering data
+        if filter_columns_index == None:
+            # Return row data (column index 0) for the first K neighbors
+            # No need to continue filtering data
+            return [row[0] for row in distances[:k_neighbors]]
         else:
-            # Konversi "filter_label" ke list jika hanya ada satu label
-            if not isinstance(filter_label, list): filter_label = [filter_label]
-
-            indeks_label = []
-            # Temukan indeks kolom dari tiap-tiap "filter_label"
-            for nama_label in filter_label:
-                for kol in range(len(self.label)):
-                    if self.label[kol] == nama_label:
-                        indeks_label.append(kol)
-            # Jangan lanjutkan bila indeks label kosong
-            if indeks_label == []:
-                raise NoIndexFoundFromLabel("tidak dapat menemukan indeks dari label")
-
-            # Tetangga terdekat mula-mula
-            tetangga = []
-            for bar in jarak:
-                ketemu_filter = False
-                for kol in range(len(bar[0])):
-                    # Cek apakah nilai pada "indeks_label" ada yang bernilai "filter_nilai"
-                    if kol in indeks_label:
-                        if bar[kol] == filter_nilai:
-                            ketemu_filter = True
+            # Convert filter_columns_index to list even if there's only one column
+            if not isinstance(filter_columns_index, list):
+                filter_columns_index = [filter_columns_index]
+            neighbors = []
+            # Begin filtering column(s) by filter value
+            for neighbor in range(len(distances)):
+                found_filter_value = False
+                # Get row data only (column index 0), not including distance
+                for col in range(len(distances[neighbor][0])):
+                    if col in filter_columns_index:
+                        # Check if column contain filtered value
+                        # If true then don't add this neighbor
+                        if distances[neighbor][0][col] == filter_value:
+                            found_filter_value = True
                             break
-                # Jika "filter_nilai" tidak ditemukan, tambahkan baris ke list tetangga
-                if not ketemu_filter:
-                    tetangga.append(bar[0])
-                    if len(tetangga) >= k_tetangga: break
-            # Kembalikan tetangga terdekat yang telah di-filter
-            return tetangga
+                if not found_filter_value:
+                    # Append row data only (column index 0), not including distance
+                    neighbors.append(distances[neighbor][0])
+                    if len(neighbors) >= k_neighbors: break
+            # Return filtered neighbors
+            return neighbors
+    
+    # ==============================
+    # Multi rows operation
+    # ==============================
 
-    def prediksi_kelas(self, test_set, k_tetangga = 5):
-        # Jarak mula-mula antara "baris" dengan semua data "train_set"
-        # "baris" hanya berupa 1 baris data, bukan 1 dataset
-        jarak = []
-        for bar in range(len(self.train_set)):
-            # Jarak "baris" dengan salah satu baris pada "train_set"
-            temp_jarak = self.ukur_jarak(self.train_set)
+    @staticmethod
+    # Convert dataset value to range between 0 (min) - 1 (max)
+    # Can reduce bias when calculating distance
+    # May also increase performance slightly
+    def minmax_scaler(dataset, filter_columns_index, precision = 4):
+        # Copy list as new object, not as reference
+        ndataset = dataset[:]
+        # Save min and max value of each column
+        minmax_values = []
+        for col in range(len(ndataset[0])):
+            if col in filter_columns_index:
+                # Get column values for all rows
+                col_values = [row[col] for row in ndataset]
+                min_value = min(col_values)
+                max_value = max(col_values)
+                # Append min and max value to list
+                minmax_values.append([min_value, max_value])
+            else: minmax_values.append([None, None])
+        # Begin scaling column value
+        for row in range(len(ndataset)):
+            for col in range(len(ndataset[row])):
+                if col in filter_columns_index:
+                    # Scale column value to range between 0-1
+                    ndataset[row][col] = ndataset[row][col] - minmax_values[col][0]
+                    ndataset[row][col] /= minmax_values[col][1] - minmax_values[col][0]
+                    # Round column value if needed
+                    if precision:
+                        ndataset[row][col] = round(ndataset[row][col], precision)
+        # Return scaled dataset
+        return ndataset
 
-if __name__ == "__main__":
-    diabetes = KNN("train/diabetes.csv", "train/diabetes.txt")
-    diabetes.print_dataset()
+    @staticmethod
+    # Convert zero to null (None) on specific column(s)
+    def nullify_zero(dataset, filter_columns_index, zero_value = 0):
+        # Copy list as new object, not as reference
+        ndataset = dataset[:]
+        # Convert columns index to list even if there's only one column
+        if not isinstance(filter_columns_index, list):
+            filter_columns_index = [filter_columns_index]
+        # Read dataset as rows and columns
+        for row in range(len(ndataset)):
+            for col in range(len(ndataset[row])):
+                # Replace zero to null (None) if index matches
+                if col in filter_columns_index:
+                    if ndataset[row][col] == zero_value:
+                        ndataset[row][col] = None
+        # Return dataset with zero replaced with null
+        return ndataset
+
+    @staticmethod
+    # Replace null (None) value on dataset with data from neighbors
+    # Use nullify first to convert zero to null in specific columns
+    def imputer(dataset, filter_columns_index, k_neighbors = 5, mode = "mean", mean_precision = None):
+        # Copy list as new object, not as reference
+        ndataset = dataset[:]
+        # Convert columns index to list even if there's only one column
+        if not isinstance(filter_columns_index, list):
+            filter_columns_index = [filter_columns_index]
+        # Iterate rows and columns in dataset
+        for row in range(len(ndataset)):
+            for col in range(len(ndataset[row])):
+                if col in filter_columns_index:
+                    if ndataset[row][col] == None:
+                        # Get neighbors data if current column value is null (None)
+                        neighbors = KNN.get_neighbors(ndataset[row], dataset, k_neighbors, col)
+                        # Check if the closest neighbor distance is zero
+                        if KNN.get_distance(neighbors[0], ndataset[row]) == 0:
+                            ndataset[row][col] = neighbors[0][col]
+                        else:
+                            # Get neighbors column rows data
+                            neighbors_col_values = [tmp_row[col] for tmp_row in neighbors]
+                            # Process neighbors column rows data
+                            if mode == "mean":
+                                neighbors_data = statistics.mean(neighbors_col_values)
+                                if mean_precision: neighbors_data = round(neighbors_data, mean_precision)
+                            elif mode == "median":
+                                neighbors_data = statistics.median(neighbors_col_values)
+                            elif mode == "mode":
+                                neighbors_data = statistics.mode(neighbors_col_values)
+                            # Fill current column value from neighbors data
+                            ndataset[row][col] = neighbors_data
+        # Return normalized dataset
+        return ndataset
+
+    # ==============================
+    # Finally... ＼(＾O＾)／
+    # ==============================
+
+    @staticmethod
+    # Can also be used as K-fold cross validation (use list slicing)
+    # If answer dataset not provided then accuracy won't be shown
+    # Use header_list = None and num_rows = 0 to suppress printing
+    # This function return classified test dataset
+    def predict_class(test_dataset, train_dataset, header_list, k_neighbors = 5, num_rows = 10, answer_dataset = None):
+        # Copy list as new object, not as reference
+        ntest_dataset = test_dataset[:]
+        # Merge dataset for later imputation
+        both_dataset = train_dataset + test_dataset
+        # Predict class (last column index) of data, resulting classified data
+        both_dataset = KNN.imputer(both_dataset, len(both_dataset[0]) - 1, k_neighbors, "mode")
+        # Replace unclassified test_dataset with classified test_dataset
+        ntest_dataset = both_dataset[-len(ntest_dataset):]
+        # Print the first N rows of test_dataset
+        KNN.print_dataset(ntest_dataset, header_list, num_rows)
+        # Calculate accuracy if answer_dataset is specified
+        if answer_dataset:
+            # Get class (last colum index) predictions and the right answers
+            predictions = [row[-1] for row in ntest_dataset]
+            answers = [row[-1] for row in answer_dataset]
+            accuracy = []
+            for col in range(len(predictions)):
+                # 1 point if prediction is right, 0 point if wrong
+                if predictions[col] == answers[col]:
+                    accuracy.append(1)
+                else: accuracy.append(0)
+            # Print predictions accuracy
+            print(f"{sum(accuracy)} right answer(s) out of {len(accuracy)} data")
+            accuracy = sum(accuracy) / len(accuracy) * 100
+            print(f"KNN predictions accuracy: {round(accuracy, 2)}%")
+        # Return classified test_dataset
+        return ntest_dataset
