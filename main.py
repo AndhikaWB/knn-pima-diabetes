@@ -39,9 +39,9 @@ if __name__ == "__main__":
     print("* Dataset gabungan setelah nilai null diimputasi *")
     KNN.print_dataset(diabetes_gabungan, diabetes_label, 10)
 
-    # Cari nilai modus dari 5 tetangga terdekat untuk klasifikasi diabetes
-    #diabetes_gabungan = KNN.imputer(diabetes_gabungan, indeks_kolom_hasil, 5, "mode")
-    #KNN.print_dataset(diabetes_gabungan, diabetes_label, -(len(diabetes_testing)))
+    # Tes akurasi pengklasifikasian ke sesama data dalam dataset training
+    # Bagi dataset training menjadi 5 bagian, lalu tes 5 kali dengan tetangga terdekat 5 buah
+    #KNN.k_fold_crossval(diabetes_training + diabetes_answer, 5, 5)
 
     # Pisah kembali dataset gabungan menjadi dataset training dan dataset testing
     diabetes_training = diabetes_gabungan[:len(diabetes_training)] # Sisakan dataset training

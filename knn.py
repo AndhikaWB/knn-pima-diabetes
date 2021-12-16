@@ -60,7 +60,7 @@ class KNN:
         nl = "\n" if on_linux else ""
         # Open output file (write mode)
         with open(output_file, "w", newline = nl) as file:
-            # Force write null values and empty string as ""
+            # Force write null (None) values and empty string as ""
             writer = csv.writer(file, delimiter = ",", quoting = csv.QUOTE_NONNUMERIC)
             if header_list != None:
                 # Write header too if header list is specified
@@ -71,7 +71,7 @@ class KNN:
     @staticmethod
     # Header list can't be empty since column size is based on that
     # Extra column spaces are useful when column values are longer than header
-    # Use negative num_rows to print dataset in reverse
+    # Use negative num_rows to print last X rows in dataset
     def print_dataset(dataset, header_list, num_rows = 10, extra_column_spaces = 4):
         # Cancel print (useful in some scenarios)
         if num_rows == 0: return
@@ -86,9 +86,12 @@ class KNN:
         for row in range(len(dataset)):
             # Stop if it reached number of rows from parameter
             if row == abs(num_rows): break
+            same_row = False
             for col in range(len(dataset[row])):
-                # Reverse row if num_rows is negative
-                if num_rows < 1 and row >= 0: row = -(row + 1)
+                # Start from last X rows if num_rows is negative
+                if num_rows < 1 and not same_row:
+                    row = len(dataset) + row + num_rows
+                    same_row = True
                 try:
                     # Print each column with same width as header
                     print(f"{dataset[row][col]:<{header_lengths[col]}}", end = " ")
@@ -259,10 +262,9 @@ class KNN:
     # ==============================
 
     @staticmethod
-    # Can also be used as K-fold cross validation (use list slicing)
     # If answer dataset not provided then accuracy won't be shown
-    # Use header_list = None and num_rows = 0 to suppress printing
-    # This function return classified test dataset
+    # Use header_list = None and num_rows = 0 to suppress printing data
+    # This function will return classified test dataset
     def predict_class(test_dataset, train_dataset, header_list, k_neighbors = 5, num_rows = 10, answer_dataset = None):
         # Copy list as new object, not as reference
         ntest_dataset = copy.deepcopy(test_dataset)
@@ -270,9 +272,9 @@ class KNN:
         both_dataset = train_dataset + test_dataset
         # Predict class (last column index) of data, resulting classified data
         both_dataset = KNN.imputer(both_dataset, len(both_dataset[0]) - 1, k_neighbors, "mode")
-        # Replace unclassified test_dataset with classified test_dataset
+        # Replace unclassified test dataset with classified test dataset
         ntest_dataset = both_dataset[-len(ntest_dataset):]
-        # Print the first N rows of test_dataset
+        # Print the first N rows of test dataset
         KNN.print_dataset(ntest_dataset, header_list, num_rows)
         # Calculate accuracy if answer_dataset is specified
         if answer_dataset:
@@ -289,11 +291,40 @@ class KNN:
             print(f"{sum(accuracy)} right answer(s) out of {len(accuracy)} data")
             accuracy = sum(accuracy) / len(accuracy) * 100
             print(f"KNN predictions accuracy: {round(accuracy, 2)}%\n")
-        # Return classified test_dataset
+        # Return classified test dataset
         return ntest_dataset
 
+    # Test the most optimum number of neighbors that give the best accuracy
+    # Same as predict_class function, but test multiple times with different number of neighbors
     def regression_test(test_dataset, train_dataset, answer_dataset, min_neighbors = 3, max_neighbors = 30):
         for i in range(min_neighbors, max_neighbors + 1):
             # Print to manually select optimal number of neighbors
             print(f"Number of neighbors: {i}")
             KNN.predict_class(test_dataset, train_dataset, None, i, 0, answer_dataset)
+    
+    # Divide dataset into X folds and test the accuracy
+    # If divide by 5, then 1/5 will used as test data and 4/5 as train data
+    # Test then will be launched 5 times (each fold will be used as test data)
+    def k_fold_crossval(dataset, divide_by = 5, k_neighbors = 5):
+        if divide_by == 1 or divide_by > len(dataset) or isinstance(divide_by, float):
+            raise ValueError("Can't divide dataset by {divide_by}")
+        # Number of rows that will be used for testing
+        num_test_rows = int(len(dataset) / divide_by)
+        # Initial row index for test dataset
+        test_row_start = 0
+        test_row_end = num_test_rows - 1
+        # Begin k-fold cross validatoin
+        for iter in range(divide_by):
+            if iter > 0:
+                # Recalculate row index for test dataset on each iteration
+                test_row_start = test_row_end + 1
+                test_row_end = test_row_start + num_test_rows - 1
+            # Generate test dataset, train dataset, and answer dataset
+            answer_dataset = dataset[test_row_start:test_row_end + 1]
+            train_dataset = [row for row in dataset if row not in answer_dataset]
+            test_dataset = copy.deepcopy(answer_dataset)
+            # Replace class/result column in test dataset with null (None) value
+            for row in test_dataset: row[-1] = None
+            # Print accuracy result
+            print(f"K-fold cross validation {iter + 1} of {divide_by}")
+            KNN.predict_class(test_dataset, train_dataset, None, k_neighbors, 0, answer_dataset)
