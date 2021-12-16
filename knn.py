@@ -8,7 +8,7 @@
   https://machinelearningmastery.com/tutorial-to-implement-k-nearest-neighbors-in-python-from-scratch
   https://machinelearningmastery.com/knn-imputation-for-missing-values-in-machine-learning
   https://towardsdatascience.com/everything-you-need-to-know-about-min-max-normalization-in-python-b79592732b79
-  https://colab.research.google.com/drive/1ptnsiqq4aX-YNYfxdpBPgbQolQrrEjeJ
+  https://towardsdatascience.com/pima-indians-diabetes-prediction-knn-visualization-5527c154afff
 
 * GitHub *
   https://github.com/AndhikaWB/knn-pima-diabetes

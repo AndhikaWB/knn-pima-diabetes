@@ -15,3 +15,4 @@ An attempt to make KNN (K-nearest neighbors) algorithm from scratch for [PIMA In
 * [Let’s Make a KNN Classifier from Scratch](https://towardsdatascience.com/lets-make-a-knn-classifier-from-scratch-e73c43da346d)
 * [kNN Imputation for Missing Values in Machine Learning](https://machinelearningmastery.com/knn-imputation-for-missing-values-in-machine-learning/)
 * [Everything you need to know about Min-Max normalization](https://towardsdatascience.com/everything-you-need-to-know-about-min-max-normalization-in-python-b79592732b79)
+* [Pima Indians Diabetes - Prediction & KNN Visualization](https://towardsdatascience.com/pima-indians-diabetes-prediction-knn-visualization-5527c154afff)
