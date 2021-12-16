@@ -1,5 +1,22 @@
+"""
+* Author *
+  Andhika Putra Pratama (119140224)
+  Andhika Wibawa Bhagaskara (119140218)
+
+* References *
+  https://towardsdatascience.com/lets-make-a-knn-classifier-from-scratch-e73c43da346d
+  https://machinelearningmastery.com/tutorial-to-implement-k-nearest-neighbors-in-python-from-scratch
+  https://machinelearningmastery.com/knn-imputation-for-missing-values-in-machine-learning
+  https://towardsdatascience.com/everything-you-need-to-know-about-min-max-normalization-in-python-b79592732b79
+  https://colab.research.google.com/drive/1ptnsiqq4aX-YNYfxdpBPgbQolQrrEjeJ
+
+* GitHub *
+  https://github.com/AndhikaWB/knn-pima-diabetes
+"""
+
+# For reading and writing CSV file
 import csv
-import math
+# For using mean, median, and mode
 import statistics
 
 class KNN:
@@ -83,6 +100,8 @@ class KNN:
     # data_row1 must not contain null (None) value
     # data_row2 can contain some null values
     # Null columns are ignored to estimate distance (may increase accuracy)
+    # Return negative distance if data_row1 contain null value
+    # Compatible rows should always return positive distance
     def get_distance(data_row1, data_row2):
         # Copy list as new object, not as reference
         ndata_row1 = data_row1[:]
@@ -92,13 +111,13 @@ class KNN:
         # Iterate columns to sum distance except last column (class/result column)
         for col in range(len(data_row1) - 1):
             # Immediately return if value from data_row1 is null
-            if ndata_row1[col] == None: return None
+            if ndata_row1[col] == None: return -1
             # Skip column if value from data_row2 is null
             if ndata_row2[col] == None: continue
             # Calculate euclidean distance (without square root)
             distance += (ndata_row1[col] - ndata_row2[col]) ** 2
         # Return square root of distance
-        return math.sqrt(distance)
+        return distance ** 0.5
 
     @staticmethod
     # Get closest neighbors of data row from dataset. Filter colums and value must be used together
@@ -110,8 +129,10 @@ class KNN:
             # Get distance from a row (in dataset) to data row (from parameter)
             curr_distance = KNN.get_distance(row, data_row)
             # Save row data and the distance
-            if curr_distance != None:
-                distances.append([row, curr_distance])
+            # Do not append if both rows incompatible
+            if curr_distance >= 0:
+                # Add row as copy, just in case passed as reference
+                distances.append([row[:], curr_distance])
         # Sort neighbors by closest distance (column index 1)
         distances.sort(key = lambda x: x[1])
         # Begin returning or filtering data
@@ -267,3 +288,14 @@ class KNN:
             print(f"KNN predictions accuracy: {round(accuracy, 2)}%")
         # Return classified test_dataset
         return ntest_dataset
+    
+    # TODO: Investigate bug causing same accuracy after the first one
+    #       Probably because of stray list reference somewhere?
+    #       But it seems that each list address are different
+    #       Use the "id()" function to test the address
+    # def regression_test(test_dataset, train_dataset, answer_dataset, min_neighbors = 3, max_neighbors = 30):
+    #     for i in range(min_neighbors, max_neighbors + 1):
+    #         # Print to manually select optimal number of neighbors
+    #         print(f"Number of neighbors: {i}")
+    #         KNN.predict_class(test_dataset, train_dataset, None, i, 0, answer_dataset)
+    #         print()
