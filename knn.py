@@ -18,6 +18,8 @@
 import csv
 # For using mean, median, and mode
 import statistics
+# For copying list by value (deepcopy)
+import copy
 
 class KNN:
     @staticmethod
@@ -32,7 +34,7 @@ class KNN:
                 # Read column for each row
                 for col in range(len(reader[row])):
                     try:
-                        if reader[row][col] in ("None", "NaN"):
+                        if reader[row][col] in ("None", "NaN", ""):
                             # Convert "empty" string in column to null (None)
                             reader[row][col] = None
                         else:
@@ -58,18 +60,21 @@ class KNN:
         nl = "\n" if on_linux else ""
         # Open output file (write mode)
         with open(output_file, "w", newline = nl) as file:
+            # Force write null values and empty string as ""
+            writer = csv.writer(file, delimiter = ",", quoting = csv.QUOTE_NONNUMERIC)
             if header_list != None:
                 # Write header too if header list is specified
-                csv.writer(file).writerow(header_list)
+                writer.writerow(header_list)
             # Write rows from list in dataset
-            csv.writer(file).writerows(dataset)
+            writer.writerows(dataset)
 
     @staticmethod
     # Header list can't be empty since column size is based on that
     # Extra column spaces are useful when column values are longer than header
-    def print_dataset(dataset, header_list, max_rows = 10, extra_column_spaces = 4):
+    # Use negative num_rows to print dataset in reverse
+    def print_dataset(dataset, header_list, num_rows = 10, extra_column_spaces = 4):
         # Cancel print (useful in some scenarios)
-        if max_rows < 1: return
+        if num_rows == 0: return
         header_lengths = []
         # Print dataset header
         for header in header_list:
@@ -79,9 +84,11 @@ class KNN:
         print()
         # Print data in dataset
         for row in range(len(dataset)):
-            # Stop if it reached maximum rows from parameter
-            if row >= max_rows: break
+            # Stop if it reached number of rows from parameter
+            if row == abs(num_rows): break
             for col in range(len(dataset[row])):
+                # Reverse row if num_rows is negative
+                if num_rows < 1 and row >= 0: row = -(row + 1)
                 try:
                     # Print each column with same width as header
                     print(f"{dataset[row][col]:<{header_lengths[col]}}", end = " ")
@@ -103,19 +110,15 @@ class KNN:
     # Return negative distance if data_row1 contain null value
     # Compatible rows should always return positive distance
     def get_distance(data_row1, data_row2):
-        # Copy list as new object, not as reference
-        ndata_row1 = data_row1[:]
-        ndata_row2 = data_row2[:]
-        # Initial distance
         distance = 0.0
         # Iterate columns to sum distance except last column (class/result column)
         for col in range(len(data_row1) - 1):
             # Immediately return if value from data_row1 is null
-            if ndata_row1[col] == None: return -1
+            if data_row1[col] == None: return -1
             # Skip column if value from data_row2 is null
-            if ndata_row2[col] == None: continue
+            if data_row2[col] == None: continue
             # Calculate euclidean distance (without square root)
-            distance += (ndata_row1[col] - ndata_row2[col]) ** 2
+            distance += (data_row1[col] - data_row2[col]) ** 2
         # Return square root of distance
         return distance ** 0.5
 
@@ -132,7 +135,7 @@ class KNN:
             # Do not append if both rows incompatible
             if curr_distance >= 0:
                 # Add row as copy, just in case passed as reference
-                distances.append([row[:], curr_distance])
+                distances.append([copy.deepcopy(row), curr_distance])
         # Sort neighbors by closest distance (column index 1)
         distances.sort(key = lambda x: x[1])
         # Begin returning or filtering data
@@ -173,7 +176,7 @@ class KNN:
     # May also increase performance slightly
     def minmax_scaler(dataset, filter_columns_index, precision = 4):
         # Copy list as new object, not as reference
-        ndataset = dataset[:]
+        ndataset = copy.deepcopy(dataset)
         # Save min and max value of each column
         minmax_values = []
         for col in range(len(ndataset[0])):
@@ -202,7 +205,7 @@ class KNN:
     # Convert zero to null (None) on specific column(s)
     def nullify_zero(dataset, filter_columns_index, zero_value = 0):
         # Copy list as new object, not as reference
-        ndataset = dataset[:]
+        ndataset = copy.deepcopy(dataset)
         # Convert columns index to list even if there's only one column
         if not isinstance(filter_columns_index, list):
             filter_columns_index = [filter_columns_index]
@@ -221,7 +224,7 @@ class KNN:
     # Use nullify first to convert zero to null in specific columns
     def imputer(dataset, filter_columns_index, k_neighbors = 5, mode = "mean", mean_precision = None):
         # Copy list as new object, not as reference
-        ndataset = dataset[:]
+        ndataset = copy.deepcopy(dataset)
         # Convert columns index to list even if there's only one column
         if not isinstance(filter_columns_index, list):
             filter_columns_index = [filter_columns_index]
@@ -262,7 +265,7 @@ class KNN:
     # This function return classified test dataset
     def predict_class(test_dataset, train_dataset, header_list, k_neighbors = 5, num_rows = 10, answer_dataset = None):
         # Copy list as new object, not as reference
-        ntest_dataset = test_dataset[:]
+        ntest_dataset = copy.deepcopy(test_dataset)
         # Merge dataset for later imputation
         both_dataset = train_dataset + test_dataset
         # Predict class (last column index) of data, resulting classified data
@@ -285,17 +288,12 @@ class KNN:
             # Print predictions accuracy
             print(f"{sum(accuracy)} right answer(s) out of {len(accuracy)} data")
             accuracy = sum(accuracy) / len(accuracy) * 100
-            print(f"KNN predictions accuracy: {round(accuracy, 2)}%")
+            print(f"KNN predictions accuracy: {round(accuracy, 2)}%\n")
         # Return classified test_dataset
         return ntest_dataset
-    
-    # TODO: Investigate bug causing same accuracy after the first one
-    #       Probably because of stray list reference somewhere?
-    #       But it seems that each list address are different
-    #       Use the "id()" function to test the address
-    # def regression_test(test_dataset, train_dataset, answer_dataset, min_neighbors = 3, max_neighbors = 30):
-    #     for i in range(min_neighbors, max_neighbors + 1):
-    #         # Print to manually select optimal number of neighbors
-    #         print(f"Number of neighbors: {i}")
-    #         KNN.predict_class(test_dataset, train_dataset, None, i, 0, answer_dataset)
-    #         print()
+
+    def regression_test(test_dataset, train_dataset, answer_dataset, min_neighbors = 3, max_neighbors = 30):
+        for i in range(min_neighbors, max_neighbors + 1):
+            # Print to manually select optimal number of neighbors
+            print(f"Number of neighbors: {i}")
+            KNN.predict_class(test_dataset, train_dataset, None, i, 0, answer_dataset)
