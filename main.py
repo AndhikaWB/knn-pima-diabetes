@@ -54,5 +54,5 @@ if __name__ == "__main__":
     print("* Dataset testing setelah diklasifikasi *")
     diabetes_testing = KNN.predict_class(diabetes_testing, diabetes_training, diabetes_label, 27, 10, diabetes_answer)
 
-    # Ekspor hasil akhir ke dalam file CSV kembali
-    KNN.export_csv(diabetes_gabungan, "result/diabetes.csv", None, True)
+    # Ekspor hasil akhir testing ke dalam file CSV kembali
+    KNN.export_csv(diabetes_testing, "result/diabetes.csv", None, True)
