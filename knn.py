@@ -22,6 +22,10 @@ import statistics
 import copy
 
 class KNN:
+    def __new__(cls):
+        # Prevent class instantiation
+        raise TypeError("Can't instantiate static class")
+
     @staticmethod
     def import_csv(input_file, header = True):
         dataset = []
@@ -258,7 +262,7 @@ class KNN:
         return ndataset
 
     # ==============================
-    # Finally... ＼(＾O＾)／
+    # Finally... \(^O^)/
     # ==============================
 
     @staticmethod
@@ -296,7 +300,7 @@ class KNN:
 
     # Test the most optimum number of neighbors that give the best accuracy
     # Same as predict_class function, but test multiple times with different number of neighbors
-    def regression_test(test_dataset, train_dataset, answer_dataset, min_neighbors = 3, max_neighbors = 30):
+    def predict_class_regression(test_dataset, train_dataset, answer_dataset, min_neighbors = 3, max_neighbors = 30):
         for i in range(min_neighbors, max_neighbors + 1):
             # Print to manually select optimal number of neighbors
             print(f"Number of neighbors: {i}")
@@ -307,7 +311,7 @@ class KNN:
     # Test then will be launched 5 times (each fold will be used as test data)
     def k_fold_crossval(dataset, divide_by = 5, k_neighbors = 5):
         if divide_by == 1 or divide_by > len(dataset) or isinstance(divide_by, float):
-            raise ValueError("Can't divide dataset by {divide_by}")
+            raise ValueError(f"Can't divide dataset by {divide_by}")
         # Number of rows that will be used for testing
         num_test_rows = int(len(dataset) / divide_by)
         # Initial row index for test dataset

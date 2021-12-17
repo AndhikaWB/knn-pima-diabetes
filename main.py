@@ -48,7 +48,7 @@ if __name__ == "__main__":
     diabetes_testing = diabetes_gabungan[-len(diabetes_testing):] # Sisakan dataset testing
     
     # Tes regresi untuk menentukan nilai tetangga yang paling optimal
-    #KNN.regression_test(diabetes_testing, diabetes_training, diabetes_answer)
+    #KNN.predict_class_regression(diabetes_testing, diabetes_training, diabetes_answer)
 
     # Prediksi akurasi klasifikasi berdasarkan nilai modus dari 27 tetangga terdekat (optimal berdasarkan regresi)
     print("* Dataset testing setelah diklasifikasi *")
