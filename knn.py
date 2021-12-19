@@ -20,6 +20,8 @@ import csv
 import statistics
 # For copying list by value (deepcopy)
 import copy
+# For randomizing list and number
+import random
 
 class KNN:
     def __new__(cls):
@@ -27,12 +29,12 @@ class KNN:
         raise TypeError("Can't instantiate static class")
 
     @staticmethod
-    def import_csv(input_file, header = True):
+    def import_csv(input_file, skip_header = True):
         dataset = []
         # Open input file (read mode)
         with open(input_file, "r") as file:
             # Skip the first row in file if header exist
-            if header: reader = list(csv.reader(file)[1:])
+            if skip_header: reader = list(csv.reader(file))[1:]
             else: reader = list(csv.reader(file))
             for row in range(len(reader)):
                 # Read column for each row
@@ -130,7 +132,8 @@ class KNN:
         return distance ** 0.5
 
     @staticmethod
-    # Get closest neighbors of data row from dataset. Filter colums and value must be used together
+    # Get closest neighbors of data row from dataset
+    # Filter colums and value must be used together (if needed)
     # For example, if filter_columns_index = [0, 1, 2] and filter value = None
     # Then the neighbors will not have index 0, 1, 2 with null (None) value
     def get_neighbors(data_row, dataset, k_neighbors = 5, filter_columns_index = None, filter_value = None):
@@ -141,8 +144,7 @@ class KNN:
             # Save row data and the distance
             # Do not append if both rows incompatible
             if curr_distance >= 0:
-                # Add row as copy, just in case passed as reference
-                distances.append([copy.deepcopy(row), curr_distance])
+                distances.append([row, curr_distance])
         # Sort neighbors by closest distance (column index 1)
         distances.sort(key = lambda x: x[1])
         # Begin returning or filtering data
@@ -170,17 +172,18 @@ class KNN:
                     # Append row data only (column index 0), not including distance
                     neighbors.append(distances[neighbor][0])
                     if len(neighbors) >= k_neighbors: break
-            # Return filtered neighbors
-            return neighbors
+            # Return filtered neighbors (as copy, not as reference)
+            return copy.deepcopy(neighbors)
     
     # ==============================
     # Multi rows operation
     # ==============================
 
     @staticmethod
+    # Please use min-max scaler only after applying nullify zero
+    # Applying min-max scaler after that may change data signature
     # Convert dataset value to range between 0 (min) - 1 (max)
-    # Can reduce bias when calculating distance
-    # May also increase performance slightly
+    # Can reduce bias when calculating distance for KNN
     def minmax_scaler(dataset, filter_columns_index, precision = 4):
         # Copy list as new object, not as reference
         ndataset = copy.deepcopy(dataset)
@@ -189,7 +192,7 @@ class KNN:
         for col in range(len(ndataset[0])):
             if col in filter_columns_index:
                 # Get column values for all rows
-                col_values = [row[col] for row in ndataset]
+                col_values = [row[col] for row in ndataset if row[col] != None]
                 min_value = min(col_values)
                 max_value = max(col_values)
                 # Append min and max value to list
@@ -198,30 +201,39 @@ class KNN:
         # Begin scaling column value
         for row in range(len(ndataset)):
             for col in range(len(ndataset[row])):
-                if col in filter_columns_index:
+                # Make sure current column exist in filter index and not null
+                if col in filter_columns_index and ndataset[row][col]:
                     # Scale column value to range between 0-1
                     ndataset[row][col] = ndataset[row][col] - minmax_values[col][0]
                     ndataset[row][col] /= minmax_values[col][1] - minmax_values[col][0]
                     # Round column value if needed
                     if precision:
                         ndataset[row][col] = round(ndataset[row][col], precision)
+                    # Convert float to integer if possible (remove unnecessary zeroes)
+                    if isinstance(ndataset[row][col], float):
+                        if ndataset[row][col].is_integer():
+                            ndataset[row][col] = int(ndataset[row][col])
         # Return scaled dataset
         return ndataset
 
     @staticmethod
     # Convert zero to null (None) on specific column(s)
+    # You can change which value considered as zero from parameter
+    # Also possible to list multiple zero values (useful for nullifying class)
     def nullify_zero(dataset, filter_columns_index, zero_value = 0):
         # Copy list as new object, not as reference
         ndataset = copy.deepcopy(dataset)
         # Convert columns index to list even if there's only one column
         if not isinstance(filter_columns_index, list):
             filter_columns_index = [filter_columns_index]
+        # Convert zero value to list even if there's only one zero value
+        if not isinstance(zero_value, list): zero_value = [zero_value]
         # Read dataset as rows and columns
         for row in range(len(ndataset)):
             for col in range(len(ndataset[row])):
                 # Replace zero to null (None) if index matches
                 if col in filter_columns_index:
-                    if ndataset[row][col] == zero_value:
+                    if ndataset[row][col] in zero_value:
                         ndataset[row][col] = None
         # Return dataset with zero replaced with null
         return ndataset
@@ -229,7 +241,7 @@ class KNN:
     @staticmethod
     # Replace null (None) value on dataset with data from neighbors
     # Use nullify first to convert zero to null in specific columns
-    def imputer(dataset, filter_columns_index, k_neighbors = 5, mode = "mean", mean_precision = None):
+    def imputer(dataset, filter_columns_index, k_neighbors = 5, mode = "mean"):
         # Copy list as new object, not as reference
         ndataset = copy.deepcopy(dataset)
         # Convert columns index to list even if there's only one column
@@ -251,11 +263,19 @@ class KNN:
                             # Process neighbors column rows data
                             if mode == "mean":
                                 neighbors_data = statistics.mean(neighbors_col_values)
-                                if mean_precision: neighbors_data = round(neighbors_data, mean_precision)
                             elif mode == "median":
                                 neighbors_data = statistics.median(neighbors_col_values)
                             elif mode == "mode":
                                 neighbors_data = statistics.mode(neighbors_col_values)
+                            # Apply precision of original (current) column value
+                            precision = str(ndataset[row][col])[::-1].find(".")
+                            if precision > 0: neighbors_data = round(neighbors_data, precision)
+                            elif neighbors_data <= 1: neighbors_data = round(neighbors_data, 4)
+                            else: neighbors_data = round(neighbors_data, 0)
+                            # Convert float to integer if possible (remove unnecessary zeroes)
+                            if isinstance(neighbors_data, float):
+                                if neighbors_data.is_integer():
+                                    neighbors_data = int(neighbors_data)
                             # Fill current column value from neighbors data
                             ndataset[row][col] = neighbors_data
         # Return normalized dataset
@@ -332,3 +352,86 @@ class KNN:
             # Print accuracy result
             print(f"K-fold cross validation {iter + 1} of {divide_by}")
             KNN.predict_class(test_dataset, train_dataset, None, k_neighbors, 0, answer_dataset)
+
+    # ==============================
+    # Extras
+    # ==============================
+
+    # Divide dataset by class from class list
+    # Return divided dataset (as 2D list with same order as class_list)
+    # Please make sure each element (class) in class_list is unique
+    def divide_dataset_class(dataset, class_list = [0, 1]):
+        # Convert class_list to list even if there's only one class
+        if not isinstance(class_list, list):
+                class_list = [class_list]
+        # Make empty 2D initial list for each class
+        divided_dataset = [[] for _ in range(len(class_list))]
+        for row in dataset:
+            if row[-1] in class_list:
+                # Append current row to class in divided_dataset
+                divided_dataset[class_list.index(row[-1])].append(row)
+        # Return divided dataset (as 2D list)
+        return copy.deepcopy(divided_dataset)
+
+    # Shuffle data (rows) order in dataset
+    # Important to ensure natural data distribution
+    # You can slice dataset after using shuffle dataset
+    def shuffle_dataset(dataset):
+        # Copy list as new object, not as reference
+        ndataset = copy.deepcopy(dataset)
+        # Shuffle dataset and return
+        random.shuffle(dataset)
+        return dataset
+
+    # SMOTE oversampling add multiply randomness within range 0-1 to the newly generated data
+    # But from some sources it should be pretty safe to use it after applying min-max scaler
+    # Dataset must only contain 1 class, split dataset using divide_dataset_class function
+    # Target size must be higher than number of data in dataset
+    # This function will return oversampled dataset
+    def smote_oversampling(dataset, target_size, k_neighbors = 5):
+        # Can't undersample dataset (it's possible, but need some rework)
+        if target_size <= len(dataset): return dataset
+        # Check class consistency in dataset
+        dataset_class = dataset[0][-1]
+        for row in dataset:
+            if row[-1] != dataset_class:
+                raise ValueError("Multiple classes found in dataset")
+        # Calculate sampling ratio and round up the value
+        sampling_ratio = -(-target_size // len(dataset))
+        # Initial value for new synthetic dataset
+        new_dataset = []
+        # Begin oversampling process
+        for sample in range(len(dataset)):
+            # Don't continue if target size is already achieved
+            if len(new_dataset) + len(dataset) >= target_size: break
+            # Get closest neighbors of current sample data
+            neighbors = KNN.get_neighbors(dataset[sample], dataset, k_neighbors)
+            # Generate 1 new row for each range in sampling ratio (for current sample)
+            for _ in range(sampling_ratio):
+                # Choose random neighbor from sample neighbors
+                neighbor = random.randrange(0, k_neighbors)
+                # Initial value for new synthetic data (row)
+                new_row = []
+                # Calculate values for columns in new_row
+                for col in range(len(dataset[sample])):
+                    # Generate new column value based on SMOTE populate algorithm
+                    diff = neighbors[neighbor][col] - dataset[sample][col]
+                    gap = random.random()
+                    new_col_value = dataset[sample][col] + gap * diff
+                    # Apply precision of original (current) column value
+                    precision = str(dataset[sample][col])[::-1].find(".")
+                    if precision > 0: new_col_value = round(new_col_value, precision)
+                    elif new_col_value <= 1: new_col_value = round(new_col_value, 4)
+                    else: new_col_value = round(new_col_value, 0)
+                    # Convert float to integer if possible (remove unnecessary zeroes)
+                    if isinstance(new_col_value, float):
+                        if new_col_value.is_integer():
+                            new_col_value = int(new_col_value)
+                    # Append column value to current row
+                    new_row.append(new_col_value)
+                # Prevent adding new row to dataset if target size reached
+                if len(new_dataset) + len(dataset) >= target_size: break
+                # Append current row to new synthetic dataset
+                new_dataset.append(new_row)
+        # Return oversampled dataset
+        return copy.deepcopy(dataset) + new_dataset
