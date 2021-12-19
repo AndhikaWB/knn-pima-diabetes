@@ -319,6 +319,7 @@ class KNN:
         # Return classified test dataset
         return ntest_dataset
 
+    @staticmethod
     # Test the most optimum number of neighbors that give the best accuracy
     # Same as predict_class function, but test multiple times with different number of neighbors
     def predict_class_regression(test_dataset, train_dataset, answer_dataset, min_neighbors = 3, max_neighbors = 30):
@@ -327,6 +328,7 @@ class KNN:
             print(f"Number of neighbors: {i}")
             KNN.predict_class(test_dataset, train_dataset, None, i, 0, answer_dataset)
     
+    @staticmethod
     # Divide dataset into X folds and test the accuracy
     # If divide by 5, then 1/5 will used as test data and 4/5 as train data
     # Test then will be launched 5 times (each fold will be used as test data)
@@ -358,6 +360,7 @@ class KNN:
     # Extras
     # ==============================
 
+    @staticmethod
     # Divide dataset by class from class list
     # Return divided dataset (as 2D list with same order as class_list)
     # Please make sure each element (class) in class_list is unique
@@ -374,6 +377,7 @@ class KNN:
         # Return divided dataset (as 2D list)
         return copy.deepcopy(divided_dataset)
 
+    @staticmethod
     # Shuffle data (rows) order in dataset
     # Important to ensure natural data distribution
     # You can slice dataset after using shuffle dataset
@@ -384,6 +388,7 @@ class KNN:
         random.shuffle(ndataset)
         return ndataset
 
+    @staticmethod
     # SMOTE oversampling add multiply randomness within range 0-1 to the newly generated data
     # But from some sources it should be pretty safe to use it after applying min-max scaler
     # Dataset must only contain 1 class, split dataset using divide_dataset_class function
