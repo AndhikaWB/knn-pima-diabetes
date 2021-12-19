@@ -1,8 +1,5 @@
 from knn import KNN
 
-# TODO: nullify sebelum minmax
-# Hilangkan koma bila integer
-
 if __name__ == "__main__":
     # ==============================
     # Langkah 1
@@ -31,6 +28,8 @@ if __name__ == "__main__":
     indeks_kolom_biasa = [0, 1, 2, 3, 4, 5, 6, 7]
     # Indeks terakhir sekaligus hasil klasifikasi diabetes/sehat
     indeks_kolom_hasil = 8
+    # Jumlah tetangga sebagai pertimbangan dalam KNN
+    tetangga = 5
 
     # ==============================
     # Langkah 2
@@ -38,7 +37,7 @@ if __name__ == "__main__":
     # Ganti nilai nol pada kolom-kolom penting dengan null.
     # Perlu dilakukan untuk proses "imputasi" nantinya.
     # Lakukan ini sebelum menerapkan normalisasi rentang nilai
-    # ke skala 0-1 untuk menjaga karakter data dalam dataset
+    # ke skala 0-1 untuk menjaga karakter data dalam dataset.
 
     dataset = KNN.nullify_zero(dataset, indeks_kolom_penting)
     # Tampilkan 10 baris pertama pada dataset
@@ -69,8 +68,8 @@ if __name__ == "__main__":
     # Baris terdekat bukan berarti tetangga terdekat!
 
     # Gunakan mean untuk mengukur nilai pada tetangga
-    # Jumlah tetangga yang diperhitungkan adalah 5 tetangga terdekat
-    dataset = KNN.imputer(dataset, indeks_kolom_penting, 5, "mean")
+    # Jumlah tetangga yang diperhitungkan adalah X tetangga terdekat
+    dataset = KNN.imputer(dataset, indeks_kolom_penting, tetangga, "mean")
     KNN.print_dataset(dataset, label, 10)
     input("Tekan ENTER untuk lanjut dari langkah 4...\n")
 
@@ -83,7 +82,7 @@ if __name__ == "__main__":
     # dilakukan oversampling agar jumlah keduanya setara.
     # Oversampling adalah proses "duplikasi" data minoritas agar
     # jumlahnya setara dengan data mayoritas. Hasil duplikasi tidak
-    # identik dengan data asalnya (sudah mengalami perubahan)
+    # identik dengan data asalnya (sudah mengalami perubahan).
 
     # Bagi kelas berdasarkan nilai 0 (sehat) atau 1 (diabetes)
     dataset_sehat, dataset_diabetes = KNN.divide_dataset_class(dataset, [0, 1])
@@ -93,8 +92,8 @@ if __name__ == "__main__":
     print(f"Jumlah sehat: {len(dataset_sehat)}")
 
     # Lakukan oversampling dataset diabetes agar setara jumlah baris dataset sehat
-    # Jumlah tetangga sebagai pertimbangan oversampling adalah 5 buah tetangga
-    dataset_diabetes = KNN.smote_oversampling(list(dataset_diabetes), len(dataset_sehat), 5)
+    # Jumlah tetangga sebagai pertimbangan oversampling adalah X buah tetangga
+    dataset_diabetes = KNN.smote_oversampling(list(dataset_diabetes), len(dataset_sehat), tetangga)
 
     print("* Sesudah oversampling *")
     print(f"Jumlah diabetes: {len(dataset_diabetes)}")
@@ -110,7 +109,7 @@ if __name__ == "__main__":
     # dataset gabungan tersebut dengan harapan sebaran data
     # (kelas) pada dataset menjadi lebih natural. Natural
     # dalam artian baris diabetes/sehat tidak menumpuk
-    # pada bagian tertentu dalam dataset
+    # pada bagian tertentu dalam dataset.
 
     # Gabung lalu shuffle dataset saat ini
     dataset = KNN.shuffle_dataset(dataset_diabetes + dataset_sehat)
@@ -127,11 +126,11 @@ if __name__ == "__main__":
     # lakukan uji akurasi. Bila dataset dibagi 5, maka 1/5
     # data akan dipakai sebagai data training, dan 4/5 
     # sisanya dipakai untuk testing. Proses ini dilakukan
-    # 5 kali dengan posisi data testing yang berubah-ubah
-
+    # 5 kali dengan posisi data testing yang berubah-ubah.
 
     # Bagi dataset menjadi 5 bagian dan uji akurasi
-    KNN.k_fold_crossval(dataset, 5)
+    # Jumlah tetangga sebagai pertimbangan adalah X buah tetangga
+    KNN.k_fold_crossval(dataset, 5, tetangga)
 
     input("Tekan ENTER untuk melihat sampel dataset hasil...\n")
-    KNN.print_dataset(dataset, label, 100)
+    KNN.print_dataset(dataset, label, 50)

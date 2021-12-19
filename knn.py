@@ -9,6 +9,7 @@
   https://machinelearningmastery.com/knn-imputation-for-missing-values-in-machine-learning
   https://towardsdatascience.com/everything-you-need-to-know-about-min-max-normalization-in-python-b79592732b79
   https://towardsdatascience.com/pima-indians-diabetes-prediction-knn-visualization-5527c154afff
+  https://www.researchgate.net/publication/220543125_SMOTE_Synthetic_Minority_Over-sampling_Technique
 
 * GitHub *
   https://github.com/AndhikaWB/knn-pima-diabetes
@@ -380,8 +381,8 @@ class KNN:
         # Copy list as new object, not as reference
         ndataset = copy.deepcopy(dataset)
         # Shuffle dataset and return
-        random.shuffle(dataset)
-        return dataset
+        random.shuffle(ndataset)
+        return ndataset
 
     # SMOTE oversampling add multiply randomness within range 0-1 to the newly generated data
     # But from some sources it should be pretty safe to use it after applying min-max scaler

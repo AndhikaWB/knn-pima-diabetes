@@ -1,1 +1,0 @@
-JumHamil,Glukosa,TekDarah,TebKulit,Insulin,BMI,RiwayatKel,Umur,Kelas
