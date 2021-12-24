@@ -4,15 +4,15 @@ if __name__ == "__main__":
     # ==============================
     # Langkah 1
     # ==============================
-    # Impor dataset dan label dari file CSV.
+    # Impor dataset dan header dari file CSV.
     # Dataset diperoleh dari PIMA Indians Diabetes.
     # https://www.kaggle.com/uciml/pima-indians-diabetes-database
 
     dataset = KNN.import_csv("dataset/diabetes_original.csv", True)
-    # Cukup ambil 1 baris pertama untuk menyimpan label
-    label = KNN.import_csv("dataset/diabetes_original.csv", False)[0]
+    # Cukup ambil 1 baris pertama untuk menyimpan header
+    header = KNN.import_csv("dataset/diabetes_original.csv", False)[0]
     # Tampilkan 10 baris pertama pada dataset
-    KNN.print_dataset(dataset, label, 10)
+    KNN.print_dataset(dataset, header, 10)
     input("Tekan ENTER untuk lanjut dari langkah 1...\n")
 
     # ==============================
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     dataset = KNN.nullify_zero(dataset, indeks_kolom_penting)
     # Tampilkan 10 baris pertama pada dataset
-    KNN.print_dataset(dataset, label, 10)
+    KNN.print_dataset(dataset, header, 10)
     input("Tekan ENTER untuk lanjut dari langkah 2...\n")
     
     # ==============================
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # Cukup normalisasi kolom biasa karena kolom hasil sudah 0/1
     dataset = KNN.minmax_scaler(dataset, indeks_kolom_biasa)
     # Tampilkan 10 baris pertama pada dataset
-    KNN.print_dataset(dataset, label, 10)
+    KNN.print_dataset(dataset, header, 10)
     input("Tekan ENTER untuk lanjut dari langkah 3...\n")
 
     # ==============================
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     # Gunakan mean untuk mengukur nilai pada tetangga
     # Jumlah tetangga yang diperhitungkan adalah X tetangga terdekat
     dataset = KNN.imputer(dataset, indeks_kolom_penting, tetangga, "mean")
-    KNN.print_dataset(dataset, label, 10)
+    KNN.print_dataset(dataset, header, 10)
     input("Tekan ENTER untuk lanjut dari langkah 4...\n")
 
     # ==============================
@@ -114,9 +114,9 @@ if __name__ == "__main__":
     # Gabung lalu shuffle dataset saat ini
     dataset = KNN.shuffle_dataset(dataset_diabetes + dataset_sehat)
     # Ekspor dataset yang telah di-shuffle untuk melihat sebaran data
-    KNN.export_csv(dataset, "dataset/diabetes_result.csv", label, True)
+    KNN.export_csv(dataset, "dataset/diabetes_result.csv", header, True)
     # Tampilkan 10 baris pertama pada dataset
-    KNN.print_dataset(dataset, label, 10)
+    KNN.print_dataset(dataset, header, 10)
     input("Tekan ENTER untuk lanjut dari langkah 6...\n")
 
     # ==============================
@@ -133,4 +133,4 @@ if __name__ == "__main__":
     KNN.k_fold_crossval(dataset, 5, tetangga)
 
     input("Tekan ENTER untuk melihat sampel dataset hasil...\n")
-    KNN.print_dataset(dataset, label, 50)
+    KNN.print_dataset(dataset, header, 50)
